@@ -1,6 +1,7 @@
 package de.seuhd.campuscoffee.domain.implementation;
 
 import de.seuhd.campuscoffee.domain.configuration.ApprovalConfiguration;
+import de.seuhd.campuscoffee.domain.exceptions.NotFoundException;
 import de.seuhd.campuscoffee.domain.model.objects.Pos;
 import de.seuhd.campuscoffee.domain.model.objects.Review;
 import de.seuhd.campuscoffee.domain.model.objects.User;
@@ -18,10 +19,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Objects;
 
 import static de.seuhd.campuscoffee.domain.tests.TestFixtures.getApprovalConfiguration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -60,4 +64,54 @@ public class CrudServiceTest {
                 .usingRecursiveFieldByFieldElementComparator()
                 .containsExactlyInAnyOrderElementsOf(testFixtures);
     }
+
+    @Test
+    void getPosByIdNotFound(){
+        //given
+        CrudServiceTestModel testModel = new CrudServiceTestModel();
+        when(posDataService.getById(anyLong())).thenThrow(new NotFoundException(Pos.class, 1L));
+
+        //when, then
+        assertThrows(NotFoundException.class, () -> testModel.getById(anyLong()));
+        verify(posDataService).getById(anyLong());
+    }
+
+    @Test
+    void upsertPosNotFound(){
+        // given
+        CrudServiceTestModel testModel = new CrudServiceTestModel();
+        Pos pos = TestFixtures.getPosFixtures().getFirst();
+        Objects.requireNonNull(pos.id());
+        when(posDataService.getById(pos.id())).thenThrow(new NotFoundException(Pos.class, pos.id()));
+
+        // when, then
+        assertThrows(NotFoundException.class, () -> testModel.upsert(pos));
+        verify(posDataService).getById(pos.id());
+    }
+
+    @Test
+    void upsertNewPos(){
+        CrudServiceTestModel testModel = new CrudServiceTestModel();
+        Pos pos = TestFixtures.getPosFixtures().getFirst();
+        pos = pos.toBuilder().id(null).build();
+        when(posDataService.upsert(pos)).thenReturn(pos.toBuilder().id(1L).build());
+
+        // when, then
+        testModel.upsert(pos);
+
+        verify(posDataService).upsert(pos);
+    }
+
+    @Test
+    void clearPosClearsAllPos(){
+        // given
+        CrudServiceTestModel testModel = new CrudServiceTestModel();
+
+        // when
+        testModel.clear();
+
+        // then
+        verify(posDataService).clear();
+    }
 }
+
